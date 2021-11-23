@@ -1,0 +1,65 @@
+// Tags - #ngrok #tunneling #localtunneling #localhost
+
+// Instructions -
+// 1) Use https://sequencediagram.org/ to render this.
+
+// Source
+// https://github.com/inconshreveable/ngrok/blob/master/docs/DEVELOPMENT.md
+
+title Ngrok (Tunneling to localhost)
+
+participantgroup Internet
+participant "User1" as u1
+participant "User2" as u2
+participant "ngrok Server" as ngs
+end
+participantgroup ISP Network
+participant Firewall / NAT (Via one or more routers/modems)
+participantgroup Developer machine
+participant "ngrok Client" as ngc
+participant "Developer" as dev
+participant "localhost:8080" as proxy
+end
+end
+
+dev->ngc:initTunnel(proxy=localhost:8080)
+activate dev
+activate ngc
+ngc->ngs:createControlConnection()\n# Long lived TCP connection
+activate ngs
+ngc<--ngs:ControlConnection (Interactions in **<color:#blue>blue</color>)
+deactivate ngs
+ngc-#blue>ngs:createTunnel()
+activate ngs
+ngs->ngs: CreateTunnel\nAndAssociateWithControlConnection
+ngc<#blue--ngs:Tunnel Number\n# Just a virtual tunnel (no connection yet)
+deactivate ngs
+ngc-->dev:TunnelAddress (TunnelNumber, TunnelPort)
+deactivate ngc
+deactivate dev
+
+dev->u1:Here is my address - <tunnelNumer>.ngrok.com:<tunnetPort>
+
+u1->u1:goToURL(TunnelAddress)
+activate u1
+u1->ngs:accessTunnel(TunnelNumber, TunnelPort)\n #This is called the public connection
+activate ngs
+ngs->ngs:findAssociatedControlConnection(TunnelNumber, TunnelPort)
+ngs-#blue>ngc:openNewProxyConnection()
+activate ngc
+ngc->ngc:Opens new proxy connection with server (Interactions in **<color:#red>red</color>)
+ngc--#red>ngs:ACK\n# This happens over the \nnew proxy connection
+deactivate ngc
+ngs->ngs:Associate proxy connection with \ncontrol connection for later recovery
+ngs-#red>ngc:copyData(source=PublicConnection, target=ProxyConnection)
+activate ngc
+ngc->proxy:openPrivateConnection(proxy)
+proxy-->ngc:ACK
+ngc->proxy:copyData(source=ProxyConnection, target=PrivateConnection)
+proxy->proxy:Request processing
+proxy->ngc: Response
+ngc-#red>ngs: Response
+deactivate ngc
+ngs->u1: Response
+deactivate ngs
+deactivate u1
